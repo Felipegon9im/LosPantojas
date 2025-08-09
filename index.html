@@ -79,20 +79,37 @@
         <main>
             <!-- Seção do Painel (Dashboard) -->
             <section id="dashboard" class="tab-content space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white p-4 rounded-xl shadow-md flex items-center justify-center gap-4">
+                    <label for="date-selector" class="font-semibold">Ver dados de:</label>
+                    <input type="date" id="date-selector" class="border border-slate-300 rounded-lg p-2">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div class="kpi-card bg-white p-6 rounded-xl shadow-md text-center">
-                        <h3 class="text-sm font-semibold text-slate-500 uppercase">FATURADO (HOJE)</h3>
+                        <h3 class="text-sm font-semibold text-slate-500 uppercase">FATURADO (DIA)</h3>
                         <p id="total-billed" class="text-4xl font-bold text-green-600 mt-2">R$ 0,00</p>
                     </div>
                     <div class="kpi-card bg-white p-6 rounded-xl shadow-md text-center">
-                        <h3 class="text-sm font-semibold text-slate-500 uppercase">A RECEBER (HOJE)</h3>
+                        <h3 class="text-sm font-semibold text-slate-500 uppercase">A RECEBER (DIA)</h3>
                         <p id="total-receivable" class="text-4xl font-bold text-amber-600 mt-2">R$ 0,00</p>
                     </div>
                     <div class="kpi-card bg-white p-6 rounded-xl shadow-md text-center">
-                        <h3 class="text-sm font-semibold text-slate-500 uppercase">LITROS VENDIDOS (HOJE)</h3>
+                        <h3 class="text-sm font-semibold text-slate-500 uppercase">LITROS VENDIDOS (DIA)</h3>
                         <p id="total-liters" class="text-4xl font-bold text-indigo-600 mt-2">0 L</p>
                     </div>
+                    <div class="kpi-card bg-purple-600 text-white p-6 rounded-xl shadow-md text-center">
+                        <h3 class="text-sm font-semibold text-purple-200 uppercase">TOTAL GERAL FATURADO</h3>
+                        <p id="grand-total-billed" class="text-4xl font-bold mt-2">R$ 0,00</p>
+                    </div>
                 </div>
+
+                <div class="kpi-card bg-white p-6 rounded-xl shadow-md text-center">
+                    <h3 class="text-sm font-semibold text-slate-500 uppercase">COMPARAÇÃO (VS. DIA ANTERIOR)</h3>
+                    <div id="comparison-card" class="flex items-center justify-center gap-2 mt-2">
+                        <p class="text-4xl font-bold text-slate-500">-</p>
+                    </div>
+                </div>
+
                 <div class="bg-white p-6 rounded-xl shadow-md">
                     <h3 class="text-lg font-bold mb-4">Distribuição de Vendas (Litros)</h3>
                     <div class="chart-container" style="position: relative; height:40vh; max-height: 350px;">
@@ -111,7 +128,6 @@
                             <input type="text" id="customer-name" required class="mt-1 w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
                         </div>
                         
-                        <!-- Adicionar Itens -->
                         <div class="border-t border-b border-slate-200 py-4">
                             <h3 class="font-semibold text-lg mb-2">Itens do Pedido</h3>
                             <div class="flex items-end gap-4">
@@ -131,7 +147,6 @@
                             </div>
                         </div>
 
-                        <!-- Resumo do Pedido -->
                         <div>
                             <h3 class="font-semibold text-lg mb-2">Resumo</h3>
                             <div id="order-summary-list" class="space-y-2">
@@ -142,7 +157,6 @@
                             </div>
                         </div>
 
-                        <!-- Status do Pagamento -->
                         <div class="border-t pt-4">
                             <label class="block text-sm font-medium text-slate-700 mb-2">Status do Pagamento</label>
                             <div class="flex gap-4">
@@ -185,9 +199,8 @@
             </section>
         </main>
         
-        <!-- Lista de Vendas do Dia -->
         <div class="mt-8">
-            <h2 class="text-2xl font-bold mb-4">Vendas de Hoje</h2>
+            <h2 id="sales-list-title" class="text-2xl font-bold mb-4">Vendas de Hoje</h2>
             <div id="sales-list" class="space-y-3">
                 <p class="text-slate-500 bg-white p-4 rounded-lg shadow-sm">Carregando vendas...</p>
             </div>
@@ -195,7 +208,6 @@
 
     </div>
 
-    <!-- Rodapé Adicionado -->
     <footer class="mt-12 py-4 text-center">
         <p class="text-sm text-slate-500">Desenvolvido por Felipe Gondim</p>
     </footer>
@@ -203,10 +215,9 @@
     <!-- Módulos do Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, setDoc, getDoc, where, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, setDoc, getDoc, where, updateDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // NOVA CONFIGURAÇÃO DO FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyBUC3NcxZaRMhp6Wo9_0ouvPASR6E_1_8k",
             authDomain: "reallospantojas.firebaseapp.com",
@@ -220,13 +231,12 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        // --- State Management ---
         let currentPrices = { normal: 0, medio: 0, grosso: 0 };
         let currentOrderItems = [];
         let salesChart;
         let saleIdToDelete = null;
+        let currentSalesListener = null;
 
-        // --- Elementos do DOM ---
         const tabButtons = document.querySelectorAll('.tab-button');
         const tabContents = document.querySelectorAll('.tab-content');
         const pricesForm = document.getElementById('prices-form');
@@ -238,8 +248,9 @@
         const deleteConfirmModal = document.getElementById('delete-confirm-modal');
         const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
         const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+        const dateSelector = document.getElementById('date-selector');
+        const salesListTitle = document.getElementById('sales-list-title');
 
-        // --- Notificações ---
         const notification = document.getElementById('notification');
         const notificationMessage = document.getElementById('notification-message');
         let notificationTimeout;
@@ -256,24 +267,19 @@
             }, 5000);
         }
 
-        // --- Funções de Formatação ---
         const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
-        // --- Navegação por Abas ---
         tabButtons.forEach(button => {
             button.addEventListener('click', () => {
                 const targetTab = button.dataset.tab;
-
                 tabButtons.forEach(btn => btn.classList.remove('active'));
                 button.classList.add('active');
-
                 tabContents.forEach(content => {
                     content.id === targetTab ? content.classList.remove('hidden') : content.classList.add('hidden');
                 });
             });
         });
 
-        // --- Lógica de Preços ---
         const pricesRef = doc(db, "configuracoes", "precos");
         onSnapshot(pricesRef, (doc) => {
             if (doc.exists()) {
@@ -298,7 +304,6 @@
             const btn = document.getElementById('save-prices-btn');
             btn.textContent = "Salvando...";
             btn.disabled = true;
-
             try {
                 const newPrices = {
                     normal: parseFloat(document.getElementById('price-normal').value) || 0,
@@ -316,14 +321,12 @@
             }
         });
         
-        // --- Lógica de Nova Venda ---
         function updateOrderSummary() {
             if (currentOrderItems.length === 0) {
                 orderSummaryList.innerHTML = `<p class="text-slate-500">Nenhum item adicionado.</p>`;
                 orderTotalEl.textContent = formatCurrency(0);
                 return;
             }
-
             orderSummaryList.innerHTML = '';
             let total = 0;
             currentOrderItems.forEach((item, index) => {
@@ -344,7 +347,6 @@
             const type = document.getElementById('item-type').value;
             const quantity = parseFloat(document.getElementById('item-quantity').value);
             const pricePerLiter = currentPrices[type];
-
             if (typeof pricePerLiter !== 'number' || pricePerLiter <= 0) {
                 showNotification(`Preço para açaí ${type} não está configurado.`, true);
                 return;
@@ -353,7 +355,6 @@
                 showNotification('Quantidade inválida.', true);
                 return;
             }
-            
             currentOrderItems.push({ type, quantity, pricePerLiter });
             updateOrderSummary();
         });
@@ -364,13 +365,10 @@
                 showNotification('Adicione pelo menos um item ao pedido.', true);
                 return;
             }
-
             const btn = document.getElementById('submit-sale-button');
             btn.textContent = "Finalizando...";
             btn.disabled = true;
-
             const totalValue = currentOrderItems.reduce((sum, item) => sum + item.quantity * item.pricePerLiter, 0);
-
             try {
                 await addDoc(collection(db, "vendas"), {
                     customerName: document.getElementById('customer-name').value.trim() || 'Cliente',
@@ -379,12 +377,10 @@
                     paymentStatus: document.querySelector('input[name="payment-status"]:checked').value,
                     createdAt: serverTimestamp()
                 });
-
                 showNotification('Venda registrada com sucesso!', false);
                 currentOrderItems = [];
                 updateOrderSummary();
                 saleForm.reset();
-
             } catch (error) {
                 console.error("Erro ao registrar venda:", error);
                 showNotification("Erro ao registrar venda.", true);
@@ -394,28 +390,20 @@
             }
         });
 
-        // --- Lógica de Listagem e Dashboard ---
         function renderSales(sales) {
             salesListEl.innerHTML = '';
             if (sales.length === 0) {
-                salesListEl.innerHTML = '<p class="text-slate-500 bg-white p-4 rounded-lg shadow-sm">Nenhuma venda hoje.</p>';
+                salesListEl.innerHTML = '<p class="text-slate-500 bg-white p-4 rounded-lg shadow-sm">Nenhuma venda neste dia.</p>';
                 return;
             }
-            
             sales.forEach(sale => {
                 const saleEl = document.createElement('div');
                 saleEl.className = 'bg-white p-4 rounded-lg shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3';
-                
                 const itemsSummary = Array.isArray(sale.items) 
-                    ? sale.items
-                        .filter(i => i && typeof i === 'object') 
-                        .map(i => `${i.quantity || '?'}L ${i.type || '?'}`)
-                        .join(', ') 
+                    ? sale.items.filter(i => i && typeof i === 'object').map(i => `${i.quantity || '?'}L ${i.type || '?'}`).join(', ') 
                     : 'Itens indisponíveis';
-
                 const statusColor = sale.paymentStatus === 'pago' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800';
                 const statusText = sale.paymentStatus === 'pago' ? 'Pago' : 'Pendente';
-                
                 saleEl.innerHTML = `
                     <div class="flex-1">
                         <p class="font-bold text-slate-900">${sale.customerName}</p>
@@ -437,7 +425,6 @@
             });
         }
         
-        // --- Lógica de Exclusão ---
         function showDeleteModal(id) {
             saleIdToDelete = id;
             deleteConfirmModal.classList.remove('hidden');
@@ -466,7 +453,6 @@
         salesListEl.addEventListener('click', async (e) => {
             const paymentBtn = e.target.closest('.toggle-payment-btn');
             const deleteBtn = e.target.closest('.delete-sale-btn');
-
             if (paymentBtn) {
                 const docId = paymentBtn.dataset.id;
                 const currentStatus = paymentBtn.dataset.status;
@@ -479,14 +465,13 @@
                     showNotification('Erro ao atualizar status.', true);
                 }
             }
-
             if (deleteBtn) {
                 const docId = deleteBtn.dataset.id;
                 showDeleteModal(docId);
             }
         });
 
-        function updateDashboard(sales) {
+        function updateDashboard(sales, prevDayBilled) {
             const totalBilled = sales.filter(s => s.paymentStatus === 'pago').reduce((sum, s) => sum + (s.totalValue || 0), 0);
             const totalReceivable = sales.filter(s => s.paymentStatus === 'pendente').reduce((sum, s) => sum + (s.totalValue || 0), 0);
             const totalLiters = sales.flatMap(s => s.items || []).reduce((sum, i) => sum + (i.quantity || 0), 0);
@@ -495,13 +480,24 @@
             document.getElementById('total-receivable').textContent = formatCurrency(totalReceivable);
             document.getElementById('total-liters').textContent = `${totalLiters.toFixed(1)} L`;
 
+            const comparisonCard = document.getElementById('comparison-card');
+            if (prevDayBilled !== null) {
+                const diff = totalBilled - prevDayBilled;
+                const color = diff >= 0 ? 'text-green-600' : 'text-red-600';
+                const icon = diff >= 0 
+                    ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clip-rule="evenodd" /></svg>`
+                    : `<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1.293-11.293a1 1 0 00-1.414 0L7 9.414V7a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 000-1.414z" clip-rule="evenodd" /></svg>`;
+                comparisonCard.innerHTML = `<div class="${color} flex items-center gap-2">${icon} <p class="text-4xl font-bold">${formatCurrency(Math.abs(diff))}</p></div>`;
+            } else {
+                comparisonCard.innerHTML = `<p class="text-4xl font-bold text-slate-500">-</p>`;
+            }
+
             const litersByType = { normal: 0, medio: 0, grosso: 0 };
             sales.flatMap(s => s.items || []).forEach(item => {
                 if(litersByType.hasOwnProperty(item.type)) {
                     litersByType[item.type] += (item.quantity || 0);
                 }
             });
-
             if (salesChart) {
                 salesChart.data.datasets[0].data = Object.values(litersByType);
                 salesChart.update();
@@ -525,43 +521,81 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom' },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return `${context.label}: ${context.raw.toFixed(1)} L`;
-                                }
-                            }
-                        }
-                    }
+                    plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: (c) => `${c.label}: ${c.raw.toFixed(1)} L` } } }
                 }
             });
         }
 
-        // --- Main Execution ---
+        async function updateDataForDate(dateString) {
+            const selectedDate = new Date(dateString + 'T00:00:00-03:00'); // Fuso horário de Brasília
+            
+            const startOfDay = new Date(selectedDate);
+            startOfDay.setHours(0, 0, 0, 0);
+
+            const endOfDay = new Date(selectedDate);
+            endOfDay.setHours(23, 59, 59, 999);
+
+            const prevDay = new Date(selectedDate);
+            prevDay.setDate(selectedDate.getDate() - 1);
+            const startOfPrevDay = new Date(prevDay);
+            startOfPrevDay.setHours(0, 0, 0, 0);
+            const endOfPrevDay = new Date(prevDay);
+            endOfPrevDay.setHours(23, 59, 59, 999);
+
+            if (currentSalesListener) {
+                currentSalesListener(); // Cancela o listener anterior
+            }
+
+            const today = new Date();
+            const isToday = startOfDay.toDateString() === today.toDateString();
+            salesListTitle.textContent = isToday ? "Vendas de Hoje" : `Vendas de ${selectedDate.toLocaleDateString('pt-BR')}`;
+
+            const salesQuery = query(collection(db, "vendas"), where("createdAt", ">=", startOfDay), where("createdAt", "<=", endOfDay), orderBy("createdAt", "desc"));
+            // CORREÇÃO: Busca todas as vendas do dia anterior e filtra no código
+            const prevDayQuery = query(collection(db, "vendas"), where("createdAt", ">=", startOfPrevDay), where("createdAt", "<=", endOfPrevDay));
+
+            currentSalesListener = onSnapshot(salesQuery, async (snapshot) => {
+                const salesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                const prevDaySnapshot = await getDocs(prevDayQuery);
+                // CORREÇÃO: Filtra por 'pago' no lado do cliente
+                const prevDayBilled = prevDaySnapshot.docs
+                    .filter(doc => doc.data().paymentStatus === 'pago')
+                    .reduce((sum, doc) => sum + (doc.data().totalValue || 0), 0);
+
+                renderSales(salesData);
+                updateDashboard(salesData, prevDayBilled);
+            }, (error) => {
+                console.error("Erro ao carregar vendas:", error);
+                showNotification("Erro ao carregar vendas. Verifique as permissões.", true);
+            });
+        }
+
+        function listenToGrandTotal() {
+            const q = query(collection(db, "vendas"), where("paymentStatus", "==", "pago"));
+            onSnapshot(q, (snapshot) => {
+                const total = snapshot.docs.reduce((sum, doc) => sum + doc.data().totalValue, 0);
+                document.getElementById('grand-total-billed').textContent = formatCurrency(total);
+            }, (error) => {
+                console.error("Erro ao carregar total geral:", error);
+                if (error.code === 'permission-denied') {
+                    showNotification("Erro de Permissão ao carregar o total geral. Verifique as regras do Firestore para a coleção 'vendas'.", true);
+                }
+            });
+        }
+
         signInAnonymously(auth)
             .then(() => {
-                console.log("Autenticação anônima bem-sucedida. User UID:", auth.currentUser.uid);
-                
+                console.log("Autenticação anônima bem-sucedida.");
                 initializeChart();
-
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-
-                const q = query(collection(db, "vendas"), where("createdAt", ">=", today), orderBy("createdAt", "desc"));
                 
-                onSnapshot(q, (snapshot) => {
-                    const salesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    renderSales(salesData);
-                    updateDashboard(salesData);
-                }, (error) => {
-                    console.error("Erro ao carregar vendas:", error);
-                    if (error.code === 'permission-denied') {
-                        showNotification("Erro de Permissão ao carregar vendas. Verifique as regras do Firestore.", true);
-                    } else {
-                        showNotification("Erro ao carregar vendas.", true);
-                    }
+                const todayString = new Date().toISOString().split('T')[0];
+                dateSelector.value = todayString;
+                updateDataForDate(todayString);
+                listenToGrandTotal();
+
+                dateSelector.addEventListener('change', (e) => {
+                    updateDataForDate(e.target.value);
                 });
             })
             .catch((error) => {
@@ -571,5 +605,6 @@
     </script>
 </body>
 </html>
+
 
 
